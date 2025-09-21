@@ -1,6 +1,6 @@
 [project]
-name = "mcp-use"
-version = "1.3.9"
+name = "hud-mcp-use-python-sdk"
+version = "2.3.18"
 description = "MCP Library for LLMs"
 authors = [
     {name = "Pietro Zullo", email = "pietro.zullo@gmail.com"}
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "mcp>=1.10.0",
+    "hud-mcp-python-sdk>=3.13.2",
     "langchain>=0.1.0",
     "websockets>=12.0",
     "aiohttp>=3.9.0",
@@ -62,3 +62,6 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_use"]

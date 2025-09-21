@@ -93,10 +93,18 @@ class ConnectionManager(Generic[T], ABC):
             logger.debug(f"Signaling stop to {self.__class__.__name__} task")
             self._stop_event.set()
             # Wait for it to finish gracefully
-            await self._task
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                logger.debug(f"{self.__class__.__name__} task was cancelled during shutdown")
+                # This is expected during cleanup, don't propagate
 
         # Ensure cleanup completed
-        await self._done_event.wait()
+        try:
+            await self._done_event.wait()
+        except asyncio.CancelledError:
+            logger.debug(f"{self.__class__.__name__} cleanup was cancelled")
+            # This is expected during cleanup, don't propagate
         logger.debug(f"{self.__class__.__name__} task completed")
 
     def get_streams(self) -> T | None:
@@ -124,6 +132,9 @@ class ConnectionManager(Generic[T], ABC):
             # Wait until stop is requested
             await self._stop_event.wait()
 
+        except asyncio.CancelledError:
+            # Task was cancelled - this is expected during shutdown
+            logger.debug(f"{self.__class__.__name__} task was cancelled")
         except Exception as e:
             # Store the exception
             self._exception = e

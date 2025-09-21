@@ -15,7 +15,7 @@ from .connectors import BaseConnector, HttpConnector, StdioConnector, WebSocketC
 from .logging import MCP_USE_DEBUG, Logger, logger
 from .session import MCPSession
 
-__version__ = version("mcp-use")
+__version__ = version("hud-mcp-use-python-sdk")
 
 __all__ = [
     "MCPAgent",

@@ -134,9 +134,14 @@ class BaseConnector(ABC):
                     logger.debug("Closing client session (no connection manager)")
                     await self.client_session.__aexit__(None, None, None)
             except Exception as e:
-                error_msg = f"Error closing client session: {e}"
-                logger.warning(error_msg)
-                errors.append(error_msg)
+                # Ignore cancel scope errors from anyio - these happen when cleaning up
+                # sessions that were created in a different async context
+                if "cancel scope" in str(e).lower():
+                    logger.debug(f"Ignoring expected cancel scope error during cleanup: {e}")
+                else:
+                    error_msg = f"Error closing client session: {e}"
+                    logger.warning(error_msg)
+                    errors.append(error_msg)
             finally:
                 self.client_session = None
 
