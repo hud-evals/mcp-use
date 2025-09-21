@@ -77,7 +77,8 @@
                   "client/sampling",
                   "client/elicitation",
                   "client/notifications",
-                  "client/logging"
+                  "client/logging",
+                  "client/authentication"
                 ]
               }
             ]
@@ -89,7 +90,8 @@
               "agent/llm-integration",
               "agent/server-manager",
               "agent/streaming",
-              "agent/structured-output"
+              "agent/structured-output",
+              "agent/interactive-chat-patterns"
             ]
           },
           {
