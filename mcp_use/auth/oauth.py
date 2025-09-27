@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 import httpx
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from authlib.oauth2 import OAuth2Error
-from pydantic import BaseModel, Field, HttpUrl, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr
 
 from ..exceptions import OAuthAuthenticationError, OAuthDiscoveryError
 from ..logging import logger
@@ -44,8 +44,7 @@ class ServerOAuthMetadata(BaseModel):
     claims_supported: list[str] | None = None
     code_challenge_methods_supported: list[str] | None = None
 
-    class Config:
-        extra = "allow"  # Allow additional fields
+    model_config = ConfigDict(extra="allow")
 
 
 class OAuthClientProvider(BaseModel):
@@ -95,8 +94,7 @@ class ClientRegistrationResponse(BaseModel):
     client_name: str | None = None
     token_endpoint_auth_method: str | None = None
 
-    class Config:
-        extra = "allow"  # Allow additional fields from server
+    model_config = ConfigDict(extra="allow")
 
 
 class FileTokenStorage:

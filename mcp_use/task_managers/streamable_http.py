@@ -12,6 +12,7 @@ import httpx
 from mcp.client.streamable_http import streamablehttp_client
 
 from ..logging import logger
+from ..types.http import McpHttpClientFactory
 from .base import ConnectionManager
 
 
@@ -30,6 +31,7 @@ class StreamableHttpConnectionManager(ConnectionManager[tuple[Any, Any]]):
         timeout: float = 5,
         read_timeout: float = 60 * 5,
         auth: httpx.Auth | None = None,
+        httpx_client_factory: McpHttpClientFactory | None = None,
     ):
         """Initialize a new streamable HTTP connection manager.
 
@@ -46,6 +48,7 @@ class StreamableHttpConnectionManager(ConnectionManager[tuple[Any, Any]]):
         self.timeout = timedelta(seconds=timeout)
         self.read_timeout = timedelta(seconds=read_timeout)
         self.auth = auth
+        self.httpx_client_factory = httpx_client_factory
         self._http_ctx = None
 
     async def _establish_connection(self) -> tuple[Any, Any]:
@@ -58,13 +61,23 @@ class StreamableHttpConnectionManager(ConnectionManager[tuple[Any, Any]]):
             Exception: If connection cannot be established.
         """
         # Create the context manager
-        self._http_ctx = streamablehttp_client(
-            url=self.url,
-            headers=self.headers,
-            timeout=self.timeout,
-            sse_read_timeout=self.read_timeout,
-            auth=self.auth,
-        )
+        if self.httpx_client_factory is not None:
+            self._http_ctx = streamablehttp_client(
+                url=self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.read_timeout,
+                auth=self.auth,
+                httpx_client_factory=self.httpx_client_factory,
+            )
+        else:
+            self._http_ctx = streamablehttp_client(
+                url=self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.read_timeout,
+                auth=self.auth,
+            )
 
         # Enter the context manager. Ignoring the session id callback
         read_stream, write_stream, _ = await self._http_ctx.__aenter__()

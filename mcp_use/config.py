@@ -4,11 +4,14 @@ Configuration loader for MCP session.
 This module provides functionality to load MCP configuration from JSON files.
 """
 
+from __future__ import annotations
+
 import json
 from typing import Any
 
 from mcp.client.session import ElicitationFnT, LoggingFnT, MessageHandlerFnT, SamplingFnT
 
+from mcp_use.types.http import HttpOptions
 from mcp_use.types.sandbox import SandboxOptions
 
 from .connectors import BaseConnector, HttpConnector, SandboxConnector, StdioConnector, WebSocketConnector
@@ -32,6 +35,7 @@ def create_connector_from_config(
     server_config: dict[str, Any],
     sandbox: bool = False,
     sandbox_options: SandboxOptions | None = None,
+    client_http_options: HttpOptions | None = None,
     sampling_callback: SamplingFnT | None = None,
     elicitation_callback: ElicitationFnT | None = None,
     message_handler: MessageHandlerFnT | None = None,
@@ -54,7 +58,7 @@ def create_connector_from_config(
         return StdioConnector(
             command=server_config["command"],
             args=server_config["args"],
-            env=server_config.get("env", None),
+            env=server_config.get("env"),
             sampling_callback=sampling_callback,
             elicitation_callback=elicitation_callback,
             message_handler=message_handler,
@@ -66,7 +70,7 @@ def create_connector_from_config(
         return SandboxConnector(
             command=server_config["command"],
             args=server_config["args"],
-            env=server_config.get("env", None),
+            env=server_config.get("env"),
             e2b_options=sandbox_options,
             sampling_callback=sampling_callback,
             elicitation_callback=elicitation_callback,
@@ -76,12 +80,15 @@ def create_connector_from_config(
 
     # HTTP connector
     elif "url" in server_config:
+        http_opts: HttpOptions = client_http_options.copy() if client_http_options else {}
+
         return HttpConnector(
             base_url=server_config["url"],
-            headers=server_config.get("headers", None),
+            headers=server_config.get("headers"),
             auth=server_config.get("auth", {}),
             timeout=server_config.get("timeout", 5),
             sse_read_timeout=server_config.get("sse_read_timeout", 60 * 5),
+            http_options=http_opts,
             sampling_callback=sampling_callback,
             elicitation_callback=elicitation_callback,
             message_handler=message_handler,
@@ -92,7 +99,7 @@ def create_connector_from_config(
     elif "ws_url" in server_config:
         return WebSocketConnector(
             url=server_config["ws_url"],
-            headers=server_config.get("headers", None),
+            headers=server_config.get("headers"),
             auth=server_config.get("auth", {}),
         )
 

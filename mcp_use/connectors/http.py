@@ -5,6 +5,8 @@ This module provides a connector for communicating with MCP implementations
 through HTTP APIs with SSE or Streamable HTTP for transport.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -18,6 +20,7 @@ from ..auth import BearerAuth, OAuth
 from ..exceptions import OAuthAuthenticationError, OAuthDiscoveryError
 from ..logging import logger
 from ..task_managers import SseConnectionManager, StreamableHttpConnectionManager
+from ..types.http import HttpOptions, McpHttpClientFactory
 from .base import BaseConnector
 
 
@@ -34,6 +37,7 @@ class HttpConnector(BaseConnector):
         headers: dict[str, str] | None = None,
         timeout: float = 5,
         sse_read_timeout: float = 60 * 5,
+        http_options: HttpOptions | None = None,
         auth: str | dict[str, Any] | httpx.Auth | None = None,
         sampling_callback: SamplingFnT | None = None,
         elicitation_callback: ElicitationFnT | None = None,
@@ -47,6 +51,7 @@ class HttpConnector(BaseConnector):
             headers: Optional additional headers.
             timeout: Timeout for HTTP operations in seconds.
             sse_read_timeout: Timeout for SSE read operations in seconds.
+            http_options: Optional HttpOptions, may include httpx_client_factory to customize HTTP client.
             auth: Authentication method - can be:
                 - A string token: Use Bearer token authentication
                 - A dict with OAuth config: {"client_id": "...", "client_secret": "...", "scope": "..."}
@@ -64,6 +69,10 @@ class HttpConnector(BaseConnector):
         self.headers = headers or {}
         self.timeout = timeout
         self.sse_read_timeout = sse_read_timeout
+        self.disable_sse_fallback = http_options.get("disable_sse_fallback") if http_options else False
+        self.httpx_client_factory: McpHttpClientFactory | None = (
+            http_options.get("httpx_client_factory") if http_options else None
+        )
         self._auth: httpx.Auth | None = None
         self._oauth: OAuth | None = None
 
@@ -151,7 +160,12 @@ class HttpConnector(BaseConnector):
             # First, try the new streamable HTTP transport
             logger.debug(f"Attempting streamable HTTP connection to: {self.base_url}")
             connection_manager = StreamableHttpConnectionManager(
-                self.base_url, self.headers, self.timeout, self.sse_read_timeout, auth=self._auth
+                self.base_url,
+                self.headers,
+                self.timeout,
+                self.sse_read_timeout,
+                auth=self._auth,
+                httpx_client_factory=self.httpx_client_factory,
             )
 
             # Test if this is a streamable HTTP server by attempting initialization
@@ -239,6 +253,11 @@ class HttpConnector(BaseConnector):
                 except Exception:
                     pass
 
+            # If SSE fallback is explicitly disabled, surface the original error immediately
+            if self.disable_sse_fallback:
+                logger.debug("SSE fallback disabled; re-raising streamable error: %s", streamable_error)
+                raise streamable_error
+
             # Check if this is a 4xx error that indicates we should try SSE fallback
             # HACK: Still sometimes StreamableHTTP will return other errors, so we still try to fallback to SSE
             should_fallback = False
@@ -257,7 +276,12 @@ class HttpConnector(BaseConnector):
                     # Fall back to the old SSE transport
                     logger.debug(f"Attempting SSE fallback connection to: {self.base_url}")
                     connection_manager = SseConnectionManager(
-                        self.base_url, self.headers, self.timeout, self.sse_read_timeout, auth=self._auth
+                        self.base_url,
+                        self.headers,
+                        self.timeout,
+                        self.sse_read_timeout,
+                        auth=self._auth,
+                        httpx_client_factory=self.httpx_client_factory,
                     )
 
                     read_stream, write_stream = await connection_manager.start()
@@ -296,6 +320,7 @@ class HttpConnector(BaseConnector):
         logger.debug(f"Successfully connected to MCP implementation via {self.transport_type}: {self.base_url}")
 
     @property
-    def public_identifier(self) -> str:
+    def public_identifier(self) -> dict[str, str]:
         """Get the identifier for the connector."""
-        return {"type": self.transport_type, "base_url": self.base_url}
+        transport_type: str = self.transport_type or ""
+        return {"type": transport_type, "base_url": self.base_url}

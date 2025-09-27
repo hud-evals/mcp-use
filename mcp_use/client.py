@@ -5,12 +5,15 @@ This module provides a high-level client that manages MCP servers, connectors,
 and sessions from configuration.
 """
 
+from __future__ import annotations
+
 import json
 import warnings
 from typing import Any
 
 from mcp.client.session import ElicitationFnT, LoggingFnT, MessageHandlerFnT, SamplingFnT
 
+from mcp_use.types.http import HttpOptions
 from mcp_use.types.sandbox import SandboxOptions
 
 from .config import create_connector_from_config, load_config_file
@@ -31,6 +34,7 @@ class MCPClient:
         allowed_servers: list[str] | None = None,
         sandbox: bool = False,
         sandbox_options: SandboxOptions | None = None,
+        http_options: HttpOptions | None = None,
         sampling_callback: SamplingFnT | None = None,
         elicitation_callback: ElicitationFnT | None = None,
         message_handler: MessageHandlerFnT | None = None,
@@ -46,9 +50,10 @@ class MCPClient:
             sampling_callback: Optional sampling callback function.
         """
         self.config: dict[str, Any] = {}
-        self.allowed_servers: list[str] = allowed_servers
+        self.allowed_servers: list[str] | None = allowed_servers
         self.sandbox = sandbox
         self.sandbox_options = sandbox_options
+        self.http_options: HttpOptions | None = http_options
         self.sessions: dict[str, MCPSession] = {}
         self.active_sessions: list[str] = []
         self.sampling_callback = sampling_callback
@@ -68,11 +73,12 @@ class MCPClient:
         config: dict[str, Any],
         sandbox: bool = False,
         sandbox_options: SandboxOptions | None = None,
+        http_options: HttpOptions | None = None,
         sampling_callback: SamplingFnT | None = None,
         elicitation_callback: ElicitationFnT | None = None,
         message_handler: MessageHandlerFnT | None = None,
         logging_callback: LoggingFnT | None = None,
-    ) -> "MCPClient":
+    ) -> MCPClient:
         """Create a MCPClient from a dictionary.
 
         Args:
@@ -86,6 +92,7 @@ class MCPClient:
             config=config,
             sandbox=sandbox,
             sandbox_options=sandbox_options,
+            http_options=http_options,
             sampling_callback=sampling_callback,
             elicitation_callback=elicitation_callback,
             message_handler=message_handler,
@@ -98,11 +105,12 @@ class MCPClient:
         filepath: str,
         sandbox: bool = False,
         sandbox_options: SandboxOptions | None = None,
+        http_options: HttpOptions | None = None,
         sampling_callback: SamplingFnT | None = None,
         elicitation_callback: ElicitationFnT | None = None,
         message_handler: MessageHandlerFnT | None = None,
         logging_callback: LoggingFnT | None = None,
-    ) -> "MCPClient":
+    ) -> MCPClient:
         """Create a MCPClient from a configuration file.
 
         Args:
@@ -116,6 +124,7 @@ class MCPClient:
             config=load_config_file(filepath),
             sandbox=sandbox,
             sandbox_options=sandbox_options,
+            http_options=http_options,
             sampling_callback=sampling_callback,
             elicitation_callback=elicitation_callback,
             message_handler=message_handler,
@@ -185,7 +194,7 @@ class MCPClient:
         servers = self.config.get("mcpServers", {})
         if not servers:
             warnings.warn("No MCP servers defined in config", UserWarning, stacklevel=2)
-            return None
+            return None  # type: ignore[return-value]
 
         if server_name not in servers:
             raise ValueError(f"Server '{server_name}' not found in config")
@@ -197,6 +206,7 @@ class MCPClient:
             server_config,
             sandbox=self.sandbox,
             sandbox_options=self.sandbox_options,
+            client_http_options=self.http_options,
             sampling_callback=self.sampling_callback,
             elicitation_callback=self.elicitation_callback,
             message_handler=self.message_handler,

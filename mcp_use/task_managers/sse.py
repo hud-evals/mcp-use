@@ -11,6 +11,7 @@ import httpx
 from mcp.client.sse import sse_client
 
 from ..logging import logger
+from ..types.http import McpHttpClientFactory
 from .base import ConnectionManager
 
 
@@ -29,6 +30,7 @@ class SseConnectionManager(ConnectionManager[tuple[Any, Any]]):
         timeout: float = 5,
         sse_read_timeout: float = 60 * 5,
         auth: httpx.Auth | None = None,
+        httpx_client_factory: McpHttpClientFactory | None = None,
     ):
         """Initialize a new SSE connection manager.
 
@@ -45,6 +47,7 @@ class SseConnectionManager(ConnectionManager[tuple[Any, Any]]):
         self.timeout = timeout
         self.sse_read_timeout = sse_read_timeout
         self.auth = auth
+        self.httpx_client_factory = httpx_client_factory
         self._sse_ctx = None
 
     async def _establish_connection(self) -> tuple[Any, Any]:
@@ -57,13 +60,23 @@ class SseConnectionManager(ConnectionManager[tuple[Any, Any]]):
             Exception: If connection cannot be established.
         """
         # Create the context manager
-        self._sse_ctx = sse_client(
-            url=self.url,
-            headers=self.headers,
-            timeout=self.timeout,
-            sse_read_timeout=self.sse_read_timeout,
-            auth=self.auth,
-        )
+        if self.httpx_client_factory is not None:
+            self._sse_ctx = sse_client(
+                url=self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.sse_read_timeout,
+                auth=self.auth,
+                httpx_client_factory=self.httpx_client_factory,
+            )
+        else:
+            self._sse_ctx = sse_client(
+                url=self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.sse_read_timeout,
+                auth=self.auth,
+            )
 
         # Enter the context manager
         read_stream, write_stream = await self._sse_ctx.__aenter__()
